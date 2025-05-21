@@ -1,76 +1,145 @@
-/*Bresenham's Midpoint Incremental Line Drawing algorithm*/
-#include<windows.h>
-#include<iostream>
-#include<math.h>
-#include <stdio.h>
-#include<GL/gl.h>
+#include <bits/stdc++.h>
+#include <GL/gl.h>
 #include <GL/glut.h>
+GLfloat position = 0.0f;
+GLfloat position2 = 0.0f;
+GLfloat speed = 0.2f;
 
-using namespace std;
-
-int X1, Y1, X2, Y2;
-
-void midpoint(void)
+void update(int value)
 {
-    double dx=(X2-X1),dy=(Y2-Y1),de,dne,ds,dnew,dold,d;
-    float x=X1,y=Y1;
-    ds=(2*dy)-dx;
-    de=2*dy;
-    dne=2*(dy-dx);
-    dnew=ds;
-    dold=0;
-    d=dnew-dold;
-    glClear(GL_COLOR_BUFFER_BIT);
+    if(position > 1.0)
+    position = -1.0f;
+    position += speed;
+    glutPostRedisplay();
+    if(position < -1.0)
+    position = 1.0f;
+    position -= speed;
+    glutPostRedisplay();
+    glutTimerFunc(50, update, 0);
+}
 
-    glBegin(GL_POINTS);
+void update2(int value)
+{
+    if(position > 1.0)
+    position = -1.0f;
+    position += speed;
+    glutPostRedisplay();
+    if(position > 1.0)
+    position = -1.0f;
+    position += speed;
+    glutPostRedisplay();
+    glutTimerFunc(50, update2, 0);
+}
 
-    glVertex2d(x,y);
-
-     while(X2>x)
+void init()
+{
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+}
+void handleMouse(int button, int state, int x, int y)
+{
+    if (button == GLUT_LEFT_BUTTON)
     {
-        if(d>0)
+        if (state == GLUT_DOWN)
         {
-            x+=1;
-            y+=1;
-            dold=dnew;
-            dnew+=dne;
+            speed += 0.1f;
+            printf("clicked at (%d, %d)\n", x, y);
         }
-        else
-        {
-            x+=1;
-            dold=dnew;
-            dnew+=de;
-        }
-        glVertex2d(x,y);
     }
-    glEnd();
+    glutPostRedisplay();
+}
+void handleKeypress(unsigned char key, int x, int y)
+{
+    switch (key)
+    {
+    case 'a':
+    speed = 0.0f;
+    break;
+    case 'w':
+    speed = 0.1f;
+    break;
+    glutPostRedisplay();
+    }
+}
 
+void SpecialInput(int key, int x, int y)
+{
+    switch(key)
+    {
+        case GLUT_KEY_UP:
+
+        position2 += speed;
+        position += speed;
+        glutTimerFunc(50, update2, 0);
+        break;
+
+        case GLUT_KEY_DOWN:
+
+        position2 -= speed;
+        position -= speed;
+        glutTimerFunc(50, update, 0);
+        break;
+
+        case GLUT_KEY_LEFT:
+
+        speed =0.0f;
+        break;
+
+        case GLUT_KEY_RIGHT:
+
+        break;
+    }
+    glutPostRedisplay();
+}
+void display()
+{
+    glClear(GL_COLOR_BUFFER_BIT);
+    glLoadIdentity();
+    glPushMatrix();
+    glTranslatef(position,position2, 0.0f);
+    glTranslatef(0.0f,position, 0.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glColor3f(0.0,0.4,0.2);
+    glBegin(GL_POLYGON);
+    glVertex3f (0.1, 0.1, 0.0);
+    glVertex3f (0.4, 0.1, 0.0);
+    glVertex3f (0.4, 0.5, 0.0);
+    glVertex3f (0.1, 0.5, 0.0);
+    glEnd();
+    glColor3f(1.0,0.0,0.0);
+    glBegin(GL_POLYGON);
+    glVertex3f (0.10, 0.5, 0.0);
+    glVertex3f (0.4, 0.5, 0.0);
+    glVertex3f (0.25, 0.75, 0.0);
+    glEnd();
+    glColor3f(0.0,1.0,0.0);
+    glBegin(GL_POLYGON);
+    glVertex3f (0.4, 0.1, 0.0);
+    glVertex3f (0.8, 0.4, 0.0);
+    glVertex3f (0.8, 0.75, 0.0);
+    glVertex3f (0.4, 0.5, 0.0);
+    glEnd();
+    glColor3f(0.4,0.0,0.4);
+    glBegin(GL_POLYGON);
+    glVertex3f (0.4, 0.5, 0.0);
+    glVertex3f (0.8, 0.75, 0.0);
+    glVertex3f (0.62, 0.93, 0.0);
+    glVertex3f (0.25, 0.75, 0.0);
+    glEnd();
+    glPopMatrix();
     glFlush();
 }
-void myInit (void)
-{
-    glClearColor(1.0, 1.0, 1.0, 0.0);
-    glColor3f(0.0f, 0.0f, 0.0f);
-    glPointSize(4.0);
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    gluOrtho2D(-100.0, 640.0,-100.0, 640.0);  //    gluOrtho2D(0.0, 640.0,0.0, 480.0);
-}
 
-int main(int argc, char** argv)
-{
-    glutInit(&argc, argv);
-    glutInitDisplayMode (GLUT_SINGLE | GLUT_RGB);
-    glutInitWindowSize (640, 640);
-    glutInitWindowPosition (100, 100);
-    glutCreateWindow ("Bresenham's Midpoint incremental Line drawing");
-    cout<<"Enter the initial points:\t";
-    cin>>X1;
-    cin>>Y1;
-    cout<<"Enter the final points:\t";
-    cin>>X2;
-    cin>>Y2;
-    glutDisplayFunc(midpoint);
-    myInit ();
-    glutMainLoop();
+int main(int argc, char** argv) {
+glutInit(&argc, argv);
+glutInitWindowSize(320, 320);
+glutInitWindowPosition(50, 50);
+glutCreateWindow("Basic Animation");
+glutDisplayFunc(display);
+init();
+glutSpecialFunc(SpecialInput);
+glutKeyboardFunc(handleKeypress);
+glutMouseFunc(handleMouse);
+glutTimerFunc(100, update, 0);
+glutMainLoop();
+return 0;
 }
