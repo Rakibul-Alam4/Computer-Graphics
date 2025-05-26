@@ -1,782 +1,2776 @@
-#include<windows.h>
+#include <iostream>
+#include <GL/gl.h>
 #include <GL/glut.h>
-#include<iostream>
-#include "imageloader.h"
+#include <stdlib.h>
 #include <math.h>
-#include <time.h>
-#include "Brick.h"
+#include<windows.h>
+#include<mmsystem.h>
 
 using namespace std;
 
-GLint m_viewport[4];
-GLuint texture;
-float mouseX ,mouseY ;
-float ballX, ballY, ballSize, ballSpeedY, ballSpeedX;
-float barPosX, barSize;
-int Score=0, highScore=0;
-int totalBrick = 1;
-float globalX= -1100.0, globalY= 600;
-float blocksize= 180, blockSpacing = 20;
-
-struct Block{
-    float posX1, posX2;
-    float posY1, posY2;
-    bool isDead;
-}blocks[50];
+float _run = 0.0;
+float _run1 = 0.0;
+float _run2 = 0.0;
+float _run3 = 0.0;
+float _rain = 0.0;
+float _nt = 0.0;
+float _ang_tri = 0.0;
+char text[] = "SCHOOL";
 
 
-bool startScreen = true, gameScreen = false, gameOverScreen=false, instructionsGame = false;
-bool gameQuit = false, isGameStarted = false, finishGame=false, isCatched=false;
-bool isCollideToTop=false, isCollideToBottom=false, isCollideToRight=false, isCollideToLeft=false;
-bool mouseButtonPressed = false, isBlockCreated = false;
-Brick *brick = (Brick*)malloc(sizeof(Brick)*totalBrick);
+bool onOff;
+bool frd = false;
+bool bck = false;
 
-float brickPositionX[4][11];
+bool rainday = false;
+bool night = false;
 
-GLuint textures;
-Image *images[10];
 
-GLuint loadTexture(Image* image)
+//float _angle = 0.0;
+//float _cameraAngle = 0.0;
+//float _run = 0.0;
+
+
+
+void Sprint( float x, float y, char *st)
 {
-	GLuint textureId;
-	glGenTextures(1, &textureId);
-	glBindTexture(GL_TEXTURE_2D, textureId);
-	glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,image->width, image->height,0,GL_RGB,GL_UNSIGNED_BYTE,image->pixels);
-	return textureId;
-}
-
-void GetImage()
-{
-    images[0] = loadBMP("F:\\Project\\C++\\GLUT\\DX-Ball\\Images\\bar.bmp");
-    images[1] = loadBMP("F:\\Project\\C++\\GLUT\\DX-Ball\\Images\\brick1.bmp");
-    images[2] = loadBMP("F:\\Project\\C++\\GLUT\\DX-Ball\\Images\\brick2.bmp");
-    images[3] = loadBMP("F:\\Project\\C++\\GLUT\\DX-Ball\\Images\\brick3.bmp");
-    images[4] = loadBMP("F:\\Project\\C++\\GLUT\\DX-Ball\\Images\\brick4.bmp");
-    images[5] = loadBMP("F:\\Project\\C++\\GLUT\\DX-Ball\\Images\\brick5.bmp");
-    images[6] = loadBMP("F:\\Project\\C++\\GLUT\\DX-Ball\\Images\\back.bmp");
-    images[7] = loadBMP("F:\\Project\\C++\\GLUT\\DX-Ball\\Images\\ball.bmp");
-}
+    int l,i;
 
 
-void DisplayText(float x ,float y ,char *text){
-    glRasterPos3f(x, y, 0);
-    int length = strlen(text);
-    for(int i=0 ;i<length ;i++)
-	{
-		glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24 ,text[i]);
-	}
-}
-
-void RandomBallCorner(){
-    srand(time(NULL));
-    ballSpeedX = 10 + rand()%40;
-    if(rand()%2==0){
-        ballSpeedX *= 1;
-    }
-    else
-        ballSpeedX *= -1;
-}
-
-//Creating single Block
-void BrickCreator(Block brick, int br){
-    if(brick.isDead){
-        glColor3f(1,1,1);
-    }
-    else{
-        glColor3f(1,1,1);
-        if(br%2==0){
-            textures = loadTexture(images[1]);
-            }
-        else
-            textures = loadTexture(images[2]);
-        glEnable(GL_TEXTURE_2D);
-        glBindTexture(GL_TEXTURE_2D, textures);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-         glBegin ( GL_POLYGON ) ;
-                glTexCoord2i(1.0,0.0);
-                glVertex2i ( brick.posX1 , brick.posY1 ) ;
-                glTexCoord2i(1.0,1.0);
-                glVertex2i ( brick.posX1 , brick.posY2 ) ;
-                glTexCoord2i(0.0,1.0);
-                glVertex2i ( brick.posX2 , brick.posY2) ;
-                glTexCoord2i(0.0,0.0);
-                glVertex2i ( brick.posX2 , brick.posY1 ) ;
-            glEnd () ;
-            glDisable(GL_TEXTURE_2D);
-            glDeleteTextures(1,&textures);
-            glFinish();
-    }
-}
-
-// For Creating Block
-void CreateBrick(){
-    if(!isBlockCreated){
-        float localX = globalX;
-        float localY = globalY;
-        int tempCounter = 0;
-        for(int j=0; j<4; j++){
-
-           for(int i = 0; i<11; i++){
-                blocks[tempCounter].posX1 = localX;
-                blocks[tempCounter].posX2 = localX + blocksize;
-                blocks[tempCounter].posY1 = localY;
-                blocks[tempCounter].posY2 = localY + 80;
-                blocks[tempCounter].isDead = false;
-                localX += blocksize + blockSpacing;
-                tempCounter++;
-           }
-           localY -= 100;
-            localX = globalX;
-        }
-        isBlockCreated = true;
-    }
-    //blocks[22].isDead = true;
-    for(int i=0; i<44; i++){
-        BrickCreator(blocks[i], i);
-    }
-}
-
-
-void CreateBall(float cx, float cy, float r, int num_segments){
-    //Ball
-   glColor3f(1, 1, 1);
-    glBegin(GL_POLYGON);
-    for (int ii = 0; ii < num_segments; ii++)
+    l=strlen( st ); // see how many characters are in text string.
+    glColor3f(1.0,0.0,0.0);
+    //glDisable(GL_LIGHTING);
+    glRasterPos2f( x, y); // location to start printing text
+    for( i=0; i < l; i++) // loop until i is greater then l
     {
-        float theta = 2.0f * 3.1415926f * float(ii) / float(num_segments);
-        float x = r * cosf(theta);
-        float y = r * sinf(theta);
-        glVertex2f(x + cx, y + cy);
+       glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, st[i]);
+
+    }
+}
+
+
+void init(){
+
+	glClearColor(0.0,0.5,0.8,1.0);
+	glColor3f(0.0,0.0,0.5);
+	glPointSize(4.0);
+	gluOrtho2D(0.0,1000.0,0.0,1000.0);
+
+}
+
+
+
+void display(){
+	glClear(GL_COLOR_BUFFER_BIT);
+
+    glBegin(GL_QUADS);
+	glColor3ub(0.0, 128, 0.0);
+	glVertex2i(0,550);
+	glVertex2i(1000,550);
+	glVertex2i(1000,0);
+	glVertex2i(0,0);
+	glEnd();
+
+
+	glPushMatrix();
+    glTranslatef(0, 50, 0);
+
+	glColor3ub(173, 151, 9);   //BODY
+    glBegin(GL_QUADS);
+    glVertex2i(575, 350);
+    glVertex2i(575, 425);
+	glVertex2i(825, 425);
+	glVertex2i(825, 350);
+	glEnd();
+
+	glColor3ub(77, 77, 219);   //ROOF
+    glBegin(GL_QUADS);
+    glVertex2i(550, 425);
+    glVertex2i(600, 460);
+	glVertex2i(800, 460);
+	glVertex2i(850, 425);
+	glEnd();
+
+	glColor3ub(139, 137, 143);    //STAIR
+    glBegin(GL_QUADS);
+    glVertex2i(565, 340);
+    glVertex2i(565, 350);
+	glVertex2i(835, 350);
+	glVertex2i(835, 340);
+	glEnd();
+
+	glColor3f(1.0, 1.0, 1.0);   //DOOR
+    glBegin(GL_QUADS);
+    glVertex2i(690, 350);
+    glVertex2i(690, 400);
+	glVertex2i(710, 400);
+	glVertex2i(710, 350);
+	glEnd();
+
+	glColor3f(1.0, 1.0, 1.0);  //Left Windows
+    glBegin(GL_QUADS);
+    glVertex2i(595, 375);
+    glVertex2i(595, 400);
+	glVertex2i(615, 400);
+	glVertex2i(615, 375);
+	glEnd();
+
+	glColor3f(1.0, 1.0, 1.0);
+    glBegin(GL_QUADS);
+    glVertex2i(635, 375);
+    glVertex2i(635, 400);
+	glVertex2i(655, 400);
+	glVertex2i(655, 375);
+	glEnd();
+
+	glColor3f(1.0, 1.0, 1.0);  //Right Windows
+    glBegin(GL_QUADS);
+    glVertex2i(805, 375);
+    glVertex2i(805, 400);
+	glVertex2i(785, 400);
+	glVertex2i(785, 375);
+	glEnd();
+
+    glColor3f(1.0, 1.0, 1.0);
+    glBegin(GL_QUADS);
+    glVertex2i(765, 400);
+	glVertex2i(745, 400);
+	glVertex2i(745, 375);
+	glVertex2i(765, 375);
+	glEnd();
+
+    glPopMatrix();
+
+
+///circle tree 1
+
+    /*glPushMatrix();
+    glTranslatef(200, 450, 0);
+    glPushMatrix();
+
+    glBegin(GL_POLYGON);
+    glColor3f(0, 0.8, 0.5);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=15;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+    glPopMatrix();
+    glPopMatrix();
+
+
+
+    glPushMatrix();
+   // glScalef(0.5, 0.5, 0.5);
+    glTranslatef(210, 438, 0);
+
+
+
+    glPushMatrix();
+
+    glBegin(GL_POLYGON);
+    glColor3f(0, 0.8, 0.5);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=15;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+    glPopMatrix();
+    glPopMatrix();
+
+
+
+    glPushMatrix();
+   // glScalef(0.5, 0.5, 0.5);
+    glTranslatef(190, 438, 0);
+
+
+
+    glPushMatrix();
+
+    glBegin(GL_POLYGON);
+    glColor3f(0, 0.8, 0.5);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=15;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+    glPopMatrix();
+    glPopMatrix();
+
+
+
+
+    glColor3f(0.4, 0, 0.5);
+    glBegin(GL_QUADS);
+    glVertex2i(198, 380);
+    glVertex2i(198, 425);
+	glVertex2i(203, 425);
+	glVertex2i(203, 380);
+	glEnd();*/
+
+
+
+
+///circle tree 2
+
+  /*
+
+    glPushMatrix();
+   // glScalef(0.5, 0.5, 0.5);
+    glTranslatef(250, 50, 0);
+
+
+    glPushMatrix();
+   // glScalef(0.5, 0.5, 0.5);
+    glTranslatef(200, 450, 0);
+
+
+
+    glPushMatrix();
+
+    glBegin(GL_POLYGON);
+    glColor3f(0, 0.8, 0.5);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=15;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+   glPopMatrix();
+    glPopMatrix();
+
+
+
+    glPushMatrix();
+   // glScalef(0.5, 0.5, 0.5);
+    glTranslatef(210, 438, 0);
+
+
+
+    glPushMatrix();
+
+    glBegin(GL_POLYGON);
+    glColor3f(0, 0.8, 0.5);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=15;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+    glPopMatrix();
+    glPopMatrix();
+
+
+
+    glPushMatrix();
+   // glScalef(0.5, 0.5, 0.5);
+    glTranslatef(190, 438, 0);
+
+
+
+    glPushMatrix();
+
+    glBegin(GL_POLYGON);
+    glColor3f(0, 0.8, 0.5);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=15;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+    glPopMatrix();
+    glPopMatrix();
+
+
+
+
+    glColor3f(0.4, 0, 0.5);
+    glBegin(GL_QUADS);
+    glVertex2i(198, 380);
+    glVertex2i(198, 425);
+	glVertex2i(203, 425);
+	glVertex2i(203, 380);
+	glEnd();
+
+
+    glPopMatrix();
+*/
+
+///circle tree 3
+
+    /*glPushMatrix();
+   // glScalef(0.5, 0.5, 0.5);
+    glTranslatef(350, 50, 0);
+
+
+    glPushMatrix();
+   // glScalef(0.5, 0.5, 0.5);
+    glTranslatef(200, 450, 0);
+
+
+
+    glPushMatrix();
+
+    glBegin(GL_POLYGON);
+    glColor3f(0, 0.8, 0.5);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=15;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+   glPopMatrix();
+    glPopMatrix();
+
+
+
+    glPushMatrix();
+   // glScalef(0.5, 0.5, 0.5);
+    glTranslatef(210, 438, 0);
+
+
+
+    glPushMatrix();
+
+    glBegin(GL_POLYGON);
+    glColor3f(0, 0.8, 0.5);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=15;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+    glPopMatrix();
+    glPopMatrix();
+
+
+
+    glPushMatrix();
+   // glScalef(0.5, 0.5, 0.5);
+    glTranslatef(190, 438, 0);
+
+
+
+    glPushMatrix();
+
+    glBegin(GL_POLYGON);
+    glColor3f(0, 0.8, 0.5);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=15;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+    glPopMatrix();
+    glPopMatrix();
+
+
+
+
+    glColor3f(0.4, 0, 0.5);
+    glBegin(GL_QUADS);
+    glVertex2i(198, 380);
+    glVertex2i(198, 425);
+	glVertex2i(203, 425);
+	glVertex2i(203, 380);
+	glEnd();
+
+
+    glPopMatrix();
+
+
+///near tree circle tree 4
+
+    glPushMatrix();
+   // glScalef(0.5, 0.5, 0.5);
+    glTranslatef(250, 35, 0);
+
+
+    glPushMatrix();
+   // glScalef(0.5, 0.5, 0.5);
+    glTranslatef(200, 450, 0);
+
+
+
+    glPushMatrix();
+
+    glBegin(GL_POLYGON);
+    glColor3f(0, 0.8, 0.5);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=15;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+    glPopMatrix();
+    glPopMatrix();
+
+
+
+    glPushMatrix();
+   // glScalef(0.5, 0.5, 0.5);
+    glTranslatef(210, 438, 0);
+
+
+
+    glPushMatrix();
+
+    glBegin(GL_POLYGON);
+    glColor3f(0, 0.8, 0.5);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=15;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+   glPopMatrix();
+    glPopMatrix();
+
+
+
+        glPushMatrix();
+   // glScalef(0.5, 0.5, 0.5);
+    glTranslatef(190, 438, 0);
+
+
+
+    glPushMatrix();
+
+    glBegin(GL_POLYGON);
+    glColor3f(0, 0.8, 0.5);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=15;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+    glPopMatrix();
+    glPopMatrix();
+
+
+
+
+//glColor3f(0.4, 0, 0.5);
+  //  glBegin(GL_QUADS);
+    //glVertex2i(198, 380);
+    //glVertex2i(198, 425);
+	//glVertex2i(203, 425);
+	//glVertex2i(203, 380);
+	//glEnd();
+
+
+    glPopMatrix();
+
+
+///circle tree 4
+
+glPushMatrix();
+   // glScalef(0.5, 0.5, 0.5);
+    glTranslatef(350, 47, 0);
+
+
+glPushMatrix();
+   // glScalef(0.5, 0.5, 0.5);
+    glTranslatef(200, 450, 0);
+
+
+
+glPushMatrix();
+
+    glBegin(GL_POLYGON);
+    glColor3f(0, 0.8, 0.5);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=15;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+   glPopMatrix();
+    glPopMatrix();
+
+
+
+glPushMatrix();
+   // glScalef(0.5, 0.5, 0.5);
+    glTranslatef(210, 438, 0);
+
+
+
+glPushMatrix();
+
+    glBegin(GL_POLYGON);
+    glColor3f(0, 0.8, 0.5);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=15;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+   glPopMatrix();
+    glPopMatrix();
+
+
+
+glPushMatrix();
+   // glScalef(0.5, 0.5, 0.5);
+    glTranslatef(190, 438, 0);
+
+
+
+glPushMatrix();
+
+    glBegin(GL_POLYGON);
+    glColor3f(0, 0.8, 0.5);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=15;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+   glPopMatrix();
+    glPopMatrix();
+
+
+
+
+glColor3f(0.4, 0, 0.5);
+    glBegin(GL_QUADS);
+    glVertex2i(198, 380);
+    glVertex2i(198, 425);
+	glVertex2i(203, 425);
+	glVertex2i(203, 380);
+	glEnd();
+
+
+ glPopMatrix();*/
+
+
+///circle tree 5
+
+/*glPushMatrix();
+   // glScalef(0.5, 0.5, 0.5);
+    glTranslatef(756, 80, 0);
+
+
+glPushMatrix();
+   // glScalef(0.5, 0.5, 0.5);
+    glTranslatef(200, 450, 0);
+
+
+
+glPushMatrix();
+
+    glBegin(GL_POLYGON);
+    glColor3f(0, 0.8, 0.5);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=15;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+   glPopMatrix();
+    glPopMatrix();
+
+
+
+glPushMatrix();
+   // glScalef(0.5, 0.5, 0.5);
+    glTranslatef(210, 438, 0);
+
+
+
+glPushMatrix();
+
+    glBegin(GL_POLYGON);
+    glColor3f(0, 0.8, 0.5);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=15;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+   glPopMatrix();
+    glPopMatrix();
+
+
+
+glPushMatrix();
+   // glScalef(0.5, 0.5, 0.5);
+    glTranslatef(190, 438, 0);
+
+
+
+glPushMatrix();
+
+    glBegin(GL_POLYGON);
+    glColor3f(0, 0.8, 0.5);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=15;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+   glPopMatrix();
+    glPopMatrix();
+
+
+
+
+glColor3f(0.4, 0, 0.5);
+   glBegin(GL_QUADS);
+    glVertex2i(198, 395);
+    glVertex2i(198, 425);
+	glVertex2i(203, 425);
+	glVertex2i(203, 395);
+	glEnd();
+
+
+ glPopMatrix();*/
+
+
+
+///circle tree 7
+/*
+glPushMatrix();
+   // glScalef(0.5, 0.5, 0.5);
+    glTranslatef(650, 40, 0);
+
+
+glPushMatrix();
+   // glScalef(0.5, 0.5, 0.5);
+    glTranslatef(200, 450, 0);
+
+
+
+glPushMatrix();
+
+    glBegin(GL_POLYGON);
+    glColor3f(0, 0.8, 0.5);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=15;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+   glPopMatrix();
+    glPopMatrix();
+
+
+
+glPushMatrix();
+   // glScalef(0.5, 0.5, 0.5);
+    glTranslatef(210, 438, 0);
+
+
+
+glPushMatrix();
+
+    glBegin(GL_POLYGON);
+    glColor3f(0, 0.8, 0.5);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=15;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+   glPopMatrix();
+    glPopMatrix();
+
+
+
+glPushMatrix();
+   // glScalef(0.5, 0.5, 0.5);
+    glTranslatef(190, 438, 0);
+
+
+
+glPushMatrix();
+
+    glBegin(GL_POLYGON);
+    glColor3f(0, 0.8, 0.5);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=15;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+   glPopMatrix();
+    glPopMatrix();
+
+
+
+
+glColor3f(0.4, 0, 0.5);
+    glBegin(GL_QUADS);
+    glVertex2i(198, 380);
+    glVertex2i(198, 425);
+	glVertex2i(203, 425);
+	glVertex2i(203, 380);
+	glEnd();
+
+
+ glPopMatrix();
+
+*/
+///circle tree 6 near tree
+
+glPushMatrix();
+   // glScalef(0.5, 0.5, 0.5);
+    glTranslatef(50, 34, 0);
+
+
+glPushMatrix();
+   // glScalef(0.5, 0.5, 0.5);
+    glTranslatef(200, 450, 0);
+
+
+
+glPushMatrix();
+
+    glBegin(GL_POLYGON);
+    glColor3f(0, 0.8, 0.5);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=15;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+   glPopMatrix();
+    glPopMatrix();
+
+
+
+glPushMatrix();
+   // glScalef(0.5, 0.5, 0.5);
+    glTranslatef(210, 438, 0);
+
+
+
+glPushMatrix();
+
+    glBegin(GL_POLYGON);
+    glColor3f(0, 0.8, 0.5);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=15;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+   glPopMatrix();
+    glPopMatrix();
+
+
+
+glPushMatrix();
+   // glScalef(0.5, 0.5, 0.5);
+    glTranslatef(190, 438, 0);
+
+
+
+glPushMatrix();
+
+    glBegin(GL_POLYGON);
+    glColor3f(0, 0.8, 0.5);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=15;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+   glPopMatrix();
+    glPopMatrix();
+
+
+
+
+glColor3f(0.4, 0, 0.5);
+    glBegin(GL_QUADS);
+    glVertex2i(198, 380);
+    glVertex2i(198, 425);
+	glVertex2i(203, 425);
+	glVertex2i(203, 380);
+	glEnd();
+
+
+ glPopMatrix();
+
+
+
+//hill
+
+	glColor3ub(34, 177, 76);
+    glBegin(GL_QUADS);
+    glVertex2i(0,550);
+    glVertex2i(0,560);
+    glVertex2i(100,650);
+    glVertex2i(200,550);
+    glEnd();
+
+    glColor3ub(34, 177, 76);
+    glBegin(GL_TRIANGLES);
+    glVertex2i(400,550);
+    glVertex2i(500,650);
+    glVertex2i(600,550);
+    glEnd();
+
+
+//hill
+    glColor3ub(34, 177, 76);
+    glBegin(GL_TRIANGLES);
+    glVertex2i(100,550);
+    glVertex2i(300,650);
+    glVertex2i(500,550);
+    glEnd();
+
+
+    glColor3ub(34, 177, 76);
+    glBegin(GL_TRIANGLES);
+    glVertex2i(600,550);
+    glVertex2i(700,650);
+    glVertex2i(800,550);
+    glEnd();
+
+
+//hill
+    glColor3ub(34, 177, 76);
+    glBegin(GL_TRIANGLES);
+    glVertex2i(800,550);
+    glVertex2i(1000,650);
+    glVertex2i(1000,550);
+    glEnd();
+
+    glColor3ub(34, 177, 76);
+    glBegin(GL_TRIANGLES);
+    glVertex2i(700,550);
+    glVertex2i(900,650);
+    glVertex2i(1000,550);
+    glEnd();
+
+
+//road
+
+    glColor3ub(66, 66, 49);
+	glBegin(GL_QUADS);
+	glVertex2i(0,330);
+	glVertex2i(1000,330);
+	glVertex2i(1000,280);
+	glVertex2i(0,280);
+	glEnd();
+
+	glColor3ub(66, 66, 49);
+	glBegin(GL_QUADS);
+	glVertex2i(690,390);
+	glVertex2i(710,390);
+	glVertex2i(710,320);
+	glVertex2i(690,320);
+	glEnd();
+
+
+
+
+//rail line
+    glColor3ub(150, 150, 144);
+	glBegin(GL_QUADS);
+    glVertex2i(0,180);
+    glVertex2i(0,205);
+    glVertex2i(1000,205);
+    glVertex2i(1000,180);
+    glEnd();
+
+    glColor3ub(0, 0, 0);
+    glBegin(GL_QUADS);
+    glVertex2i(0,202);
+    glVertex2i(1000,202);
+    glVertex2i(1000,205);
+    glVertex2i(0,205);
+
+    glEnd();
+
+    glColor3ub(0, 0, 0);
+    glBegin(GL_QUADS);
+    glVertex2i(0,180);
+    glVertex2i(1000,180);
+    glVertex2i(1000,184);
+    glVertex2i(0,184);
+    glEnd();
+
+    glColor3ub(0, 0, 0);
+    glBegin(GL_LINES);
+    float j;
+    for(j=0;j<=1000;j+=20) //rail line
+   {
+        glVertex2i(10+j,180);
+        glVertex2i(15+j,205);
+
     }
     glEnd();
 
-}
+    ///TREE 1
 
-void CreateCatcher(){
-    glColor3f(1,1,1);
     glPushMatrix();
-    glTranslated(barPosX, -700, 0.0);
-     textures = loadTexture(images[0]);
-            glEnable(GL_TEXTURE_2D);
-            glBindTexture(GL_TEXTURE_2D, textures);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-            glBegin ( GL_POLYGON ) ;
-                glTexCoord2i(1.0,0.0);
-                glVertex2i ( 0 , 0 ) ;
-                glTexCoord2i(1.0,1.0);
-                glVertex2i ( 0 , 50 ) ;
-                glTexCoord2i(0.0,1.0);
-                glVertex2i ( barSize , 50) ;
-                glTexCoord2i(0.0,0.0);
-                glVertex2i ( barSize , 0 ) ;
-            glEnd () ;
-            glDisable(GL_TEXTURE_2D);
-            glDeleteTextures(1,&textures);
-            glFinish();
+    glScalef(0.5, 0.5, 0.5);
+    glTranslatef(200, 440, 0);
+
+    glColor3f(0, 0.8, 0.2);
+    glBegin(GL_TRIANGLES);
+    glVertex2i(445, 340);
+    glVertex2i(492, 440);
+	glVertex2i(540, 340);
+	glEnd();
+
+    glColor3f(0, 0.8, 0.5);
+	glBegin(GL_TRIANGLES);
+    glVertex2i(445, 360);
+    glVertex2i(492, 460);
+	glVertex2i(540, 360);
+	glEnd();
+
+
+	glColor3f(0.4, 0, 0.5);
+	glBegin(GL_QUADS);
+    glVertex2i(497, 340);
+    glVertex2i(486, 340);
+    glVertex2i(486, 250);
+    glVertex2i(497, 250);
+    glEnd();
+
     glPopMatrix();
 
-}
 
-void ResetGameState(){
-    isCollideToBottom = false;
-    isGameStarted = false;
-    gameOverScreen=false;
-    Score = 0;
-    barPosX = -150; barSize = 350;
-    ballSize= 25;
-    ballX = barPosX+barSize/2; ballY = -650+ballSize;
-    ballSpeedY = 40; ballSpeedX = 0;
-    for(int i=0; i<44; i++){
-            blocks[i].isDead = false;
-        }
-}
+    ///TREE 2
 
-void backButton() {
-	if(mouseX <= -450 && mouseX >= -500 && mouseY >= -325 && mouseY <= -300)
-        {
-			glColor3f(0, 0, 1);
-			if(mouseButtonPressed)
-                {
-                    mouseButtonPressed = false;
-                    instructionsGame = false;
-                    startScreen = true;
-                }
-        }
-	else
-        glColor3f(0, 1, 1);
-	DisplayText(-1000, -550, "Back");
-}
+    glPushMatrix();
+    glScalef(0.50, 0.50, 0.25);
+    glTranslatef(1400, 500, 0);
 
-void InsructionScreenDisplay(){
-    glClearColor(0,0,0,0);
-//     RandomStars(2);
-    //draw();
-	glColor3f(1, 1, 1);
-	DisplayText(-900, 500, "Press Right key to move right.");
-	DisplayText(-900, 400, "Press left key to move left.");
-	DisplayText(-900, 300, "Press Space to shoot the Ball.");
-	DisplayText(-900, 200, "Press Mouse Left button to select any Option.");
-	DisplayText(-900, 100, "You get 1 points for breaking one Brick.");
-	DisplayText(-900, 0  , "If the ball hit on the Ground You lose.");
-    backButton();
-
-}
-void Stars(int size)
-{
-    glColor3f(1,1,1);
-        glPointSize(size);
-            glBegin(GL_POINTS);
-            glVertex2f(rand()%1200+100,rand()%800);
-            glVertex2f(rand()%-1200-1200,rand()%800);
-            glVertex2f(rand()%1200+100,rand()%800-800);
-            glVertex2f(rand()%+1200-1200,rand()%800-800);
-        glEnd();
-}
-
-void StartScreenDisplay(){
-    GetImage();
-
-     glBegin ( GL_POLYGON ) ;
-        glColor3f(0.05, 0, 0);
-            glVertex2i ( -1200 , -800 ) ;
-        glColor3f(0, 0.05, 0.05);
-            glVertex2i ( -1200 , 800 ) ;
-        glColor3f(0, 0, 0.05);
-            glVertex2i ( 1200 , 800) ;
-        glColor3f(0, 0.05, 0);
-            glVertex2i ( 1200 , -800 ) ;
-        glEnd () ;
-    Stars(3);
-    glLineWidth(40);
-    glClearColor(0,0,0,0);
-
-    // Game Title Bar
-        glColor3f(0.5,0,0);
-        glBegin(GL_POLYGON);
-            glVertex3f(-350,650,0.5);
-            glVertex3f(-400,700,0.5);
-            glVertex3f(400,700,0.5);
-            glVertex3f(350,650,0.5);
-            glVertex3f(400,600,0.5);
-            glVertex3f(-400,600,0.5);
-        glEnd();
-        glColor3f(1,1,1);
-        DisplayText(-80, 630, "DX-Ball");
-
-    //Start Game Button
-        glColor3f(0.145, 0.580, 0.796);
-        glBegin(GL_LINE_STRIP);
-            glVertex2f(-200 ,200);
-            glVertex2f(-200 ,300);
-            glVertex2f(200 ,300);
-            glVertex2f(200 ,200);
-            glVertex2f(-200 ,200);
-        glEnd();
-    //Instruction Button
-        glBegin(GL_LINE_STRIP);
-            glVertex2f(-200, -50);
-            glVertex2f(-200 ,50);
-            glVertex2f(200 ,50);
-            glVertex2f(200 ,-50);
-            glVertex2f(-200, -50);
-        glEnd();
-    //Quit Button
-        glBegin(GL_LINE_STRIP);
-            glVertex2f(-200 ,-300);
-            glVertex2f(-200 ,-200);
-            glVertex2f(200, -200);
-            glVertex2f(200, -300);
-            glVertex2f(-200 ,-300);
-        glEnd();
-
-    //Start Game Button Function
-        if(mouseX>=-100 && mouseX<=100 && mouseY>=50 && mouseY<=100)
-            {
-                glColor3f(0 ,0 ,1) ; //mouse hover color
-                if(mouseButtonPressed)
-                    {
-                        gameScreen = true ;
-                        gameOverScreen = false;
-                        mouseButtonPressed = false;
-                        ResetGameState();
-                    }
-            }
-        else
-            glColor3f(1 , 1, 1);
-        DisplayText(-100 ,235 ,"Start Game");
-
-    //Instruction Button Function
-        if(mouseX>=-100 && mouseX<=100 && mouseY>=-90 && mouseY<=0)
-            {
-                glColor3f(0 ,0 ,1);  //mouse hover color
-                if(mouseButtonPressed)
-                    {
-                        instructionsGame = true ;
-                        mouseButtonPressed = false;
-                    }
-            }
-        else
-            glColor3f(1 , 1, 1);
-        DisplayText(-120 ,-20 ,"Instructions");
-
-    //Exit Button Function
-        if(mouseX>=-100 && mouseX<=100 && mouseY>=-190 && mouseY<=-140)
-            {
-                glColor3f(0 ,0 ,1);
-                if(mouseButtonPressed)
-                    {
-                    gameQuit = true ;
-                    mouseButtonPressed = false;
-                    }
-            }
-        else
-            glColor3f(1 , 1, 1);
-        DisplayText(-50 ,-270 ,"Quit");
-
-}
-
-void GamePlayScreenDisplay(){
-    glClearColor(0,0,0,0);
-
-
-    CreateBall(ballX, ballY, ballSize, 20);
-    CreateCatcher();
-    CreateBrick();
-    if(Score>44){
-        finishGame = true;
-        gameScreen = false;
-    }
-
-    char temp[40];
-    glColor3f(1,0.2,0.1);
-    sprintf(temp,"Score : %d",Score);
-    DisplayText(-1180,750,temp);
-}
-
-void GameOverScreenDisplay(){
-    glColor3f(1,1,1);
-	glLineWidth(1);
-	glColor3f(0, 1, 1);
-	glBegin(GL_LINE_STRIP);				//GAME OVER
-		glVertex2f(-550 ,650);
-		glVertex2f(-550 ,520);
-		glVertex2f(550 ,520);
-		glVertex2f(550 ,650);
-		glVertex2f(-550 ,650);
+    glColor3f(0, 0.8, 0.2);
+    glBegin(GL_TRIANGLES);
+    glVertex2i(445, 340);
+    glVertex2i(492, 440);
+	glVertex2i(540, 340);
 	glEnd();
 
-	glColor3f(1, 1, 0);
-	glBegin(GL_POLYGON);				//RESTART POLYGON
-		glVertex3f(-200, 50 ,0.5);
-		glVertex3f(-200 ,150 ,0.5);
-		glVertex3f(200 ,150 ,0.5);
-		glVertex3f(200 ,50, 0.5);
-	glEnd();
-
-	glBegin(GL_POLYGON);				//QUIT POLYGON
-		glVertex3f(-200 ,-200 ,0.5);
-		glVertex3f(-200 ,-100 ,0.5);
-		glVertex3f(200, -100 ,0.5);
-		glVertex3f(200, -200 ,0.5);
+    glColor3f(0, 0.8, 0.5);
+	glBegin(GL_TRIANGLES);
+    glVertex2i(445, 360);
+    glVertex2i(492, 460);
+	glVertex2i(540, 360);
 	glEnd();
 
 
-	DisplayText(-200 ,560 ,"G A M E   O V E R ");
+	glColor3f(0.4, 0, 0.5);
+	glBegin(GL_QUADS);
+    glVertex2i(497, 340);
+    glVertex2i(486, 340);
+    glVertex2i(486, 250);
+    glVertex2i(497, 250);
+    glEnd();
 
-	glColor3f(0.5 , 0, 0.5);
-	char temp[40];
-	sprintf(temp,"Score : %d",Score);
-	DisplayText(-100 ,380 ,temp);
-
-    glColor3f(1 , 0, 0.1);
-	char temp2[40];
-	sprintf(temp2,"High Score : %d",highScore);
-	DisplayText(-150 ,280 ,temp2);
+    glPopMatrix();
 
 
-	if(mouseX>=-100 && mouseX<=100 && mouseY>=-25 && mouseY<=25){
-		glColor3f(0 ,1 ,1);
-    if(mouseButtonPressed){
-         //Reset game default values
-			gameScreen = true ;
-			gameOverScreen=false;
-			mouseButtonPressed = false;
-			ResetGameState();
-            }
-        }
-	else
-		glColor3f(0 , 0, 1);
-	DisplayText(-70 ,80 ,"Restart");
+    ///tree 3
 
-	if(mouseX>=-100 && mouseX<=100 && mouseY>=-150 && mouseY<=-100){
-		glColor3f(0 ,1 ,0);
-		if(mouseButtonPressed){
-			exit(0);
-			mouseButtonPressed = false;
-		}
-	}
-	else
-		glColor3f(0, 0, 1);
-	DisplayText(-100 ,-170 ,"    Quit");
-}
+    glPushMatrix();
+    glScalef(0.50, 0.50, 0.25);
+    glTranslatef(-400, 500, 0);
 
-void FinishGameScreen(){
+    glColor3f(0, 0.8, 0.2);
+    glBegin(GL_TRIANGLES);
+    glVertex2i(445, 340);
+    glVertex2i(492, 440);
+	glVertex2i(540, 340);
+	glEnd();
+
+    glColor3f(0, 0.8, 0.5);
+	glBegin(GL_TRIANGLES);
+    glVertex2i(445, 360);
+    glVertex2i(492, 460);
+	glVertex2i(540, 360);
+	glEnd();
+
+
+	glColor3f(0.4, 0, 0.5);
+	glBegin(GL_QUADS);
+    glVertex2i(497, 340);
+    glVertex2i(486, 340);
+    glVertex2i(486, 250);
+    glVertex2i(497, 250);
+    glEnd();
+
+    glPopMatrix();
+
+
+    ///tree 4
+
+    glPushMatrix();
+    glScalef(0.50, 0.50, 0.25);
+    glTranslatef(250, 600, 0);
+
+    glColor3f(0, 0.8, 0.2);
+    glBegin(GL_TRIANGLES);
+    glVertex2i(445, 340);
+    glVertex2i(492, 440);
+	glVertex2i(540, 340);
+	glEnd();
+
+    glColor3f(0, 0.8, 0.5);
+	glBegin(GL_TRIANGLES);
+    glVertex2i(445, 360);
+    glVertex2i(492, 460);
+	glVertex2i(540, 360);
+	glEnd();
+
+	glColor3f(0.4, 0, 0.5);
+	glBegin(GL_QUADS);
+    glVertex2i(497, 340);
+    glVertex2i(486, 340);
+    glVertex2i(486, 250);
+    glVertex2i(497, 250);
+    glEnd();
+
+    glPopMatrix();
+
+    ///tree 5
+
+    glPushMatrix();
+
+    glTranslatef(0, 400, 0);
+    glScalef(0.25, 0.25, 0.25);
+    glColor3f(0, 0.8, 0.2);
+    glBegin(GL_TRIANGLES);
+    glVertex2i(445, 340);
+    glVertex2i(492, 440);
+	glVertex2i(540, 340);
+	glEnd();
+
+    glColor3f(0, 0.8, 0.5);
+	glBegin(GL_TRIANGLES);
+    glVertex2i(445, 360);
+    glVertex2i(492, 460);
+	glVertex2i(540, 360);
+	glEnd();
+
+	glColor3f(0.4, 0, 0.5);
+	glBegin(GL_QUADS);
+    glVertex2i(497, 340);
+    glVertex2i(486, 340);
+    glVertex2i(486, 250);
+    glVertex2i(497, 250);
+    glEnd();
+
+    glPopMatrix();
+
+
+    ///tree 6
+
+    /*glPushMatrix();
+
+    glTranslatef(150, 420, 0);
+    glScalef(0.25, 0.25, 0.25);
+    glColor3f(0, 0.8, 0.2);
+    glBegin(GL_TRIANGLES);
+    glVertex2i(445, 340);
+    glVertex2i(492, 440);
+	glVertex2i(540, 340);
+	glEnd();
+
+    glColor3f(0, 0.8, 0.5);
+	glBegin(GL_TRIANGLES);
+    glVertex2i(445, 360);
+    glVertex2i(492, 460);
+	glVertex2i(540, 360);
+	glEnd();
+
+	glColor3f(0.4, 0, 0.5);
+	glBegin(GL_QUADS);
+    glVertex2i(497, 340);
+    glVertex2i(486, 340);
+    glVertex2i(486, 250);
+    glVertex2i(497, 250);
+    glEnd();
+
+    glPopMatrix();*/
+
+
+    ///tree 7
+
+    glPushMatrix();
+
+    glTranslatef(-50, 400, 0);
+    glScalef(0.25, 0.25, 0.25);
+    glColor3f(0, 0.8, 0.2);
+    glBegin(GL_TRIANGLES);
+    glVertex2i(445, 340);
+    glVertex2i(492, 440);
+	glVertex2i(540, 340);
+	glEnd();
+
+    glColor3f(0, 0.8, 0.5);
+	glBegin(GL_TRIANGLES);
+    glVertex2i(445, 360);
+    glVertex2i(492, 460);
+	glVertex2i(540, 360);
+	glEnd();
+
+	glColor3f(0.4, 0, 0.5);
+	glBegin(GL_QUADS);
+    glVertex2i(497, 340);
+    glVertex2i(486, 340);
+    glVertex2i(486, 250);
+    glVertex2i(497, 250);
+    glEnd();
+
+    glPopMatrix();
+
+
+    ///tree 8
+
+    glPushMatrix();
+
+    glTranslatef(80, 420, 0);
+    glScalef(0.25, 0.25, 0.25);
+    glColor3f(0, 0.8, 0.2);
+    glBegin(GL_TRIANGLES);
+    glVertex2i(445, 340);
+    glVertex2i(492, 440);
+	glVertex2i(540, 340);
+	glEnd();
+
+    glColor3f(0, 0.8, 0.5);
+	glBegin(GL_TRIANGLES);
+    glVertex2i(445, 360);
+    glVertex2i(492, 460);
+	glVertex2i(540, 360);
+	glEnd();
+
+	glColor3f(0.4, 0, 0.5);
+	glBegin(GL_QUADS);
+    glVertex2i(497, 340);
+    glVertex2i(486, 340);
+    glVertex2i(486, 250);
+    glVertex2i(497, 250);
+    glEnd();
+
+    glPopMatrix();
+
+
+    ///tree 9
+
+    glPushMatrix();
+
+    glTranslatef(780, 415, 0);
+    glScalef(0.25, 0.25, 0.25);
+    glColor3f(0, 0.8, 0.2);
+    glBegin(GL_TRIANGLES);
+    glVertex2i(445, 340);
+    glVertex2i(492, 440);
+	glVertex2i(540, 340);
+	glEnd();
+
+    glColor3f(0, 0.8, 0.5);
+	glBegin(GL_TRIANGLES);
+    glVertex2i(445, 360);
+    glVertex2i(492, 460);
+	glVertex2i(540, 360);
+	glEnd();
+
+	glColor3f(0.4, 0, 0.5);
+	glBegin(GL_QUADS);
+    glVertex2i(497, 340);
+    glVertex2i(486, 340);
+    glVertex2i(486, 250);
+    glVertex2i(497, 250);
+    glEnd();
+
+    glPopMatrix();
+
+
+
+
+
+
+///river
+
+
+
+    glPushMatrix();
+
+    glColor3ub(152, 222, 245);
+    glBegin(GL_QUADS);
+    glVertex2i(0, 120);
+    glVertex2i(1000, 120);
+	glVertex2i(1000, 0);
+	glVertex2i(0, 0);
+	glEnd();
+
+    glPopMatrix();
+
+
+    ///Left Moving Boat
+    glPushMatrix();
+	glTranslatef(-_run, 0.0, 0.0);
+
+
+    ///boat 2
+    glPushMatrix();
+    glTranslatef(200, 35, 0);
+
+
+    glColor3f(0.423, 0.329, 0.588);
+    glBegin(GL_QUADS);
+    glVertex2i(130, 40);
+    glVertex2i(110, 60);
+	glVertex2i(190, 60);
+	glVertex2i(170, 40);
+	glEnd();
+
+	glColor3f(0.329, 0.517, 0.588);
+    glBegin(GL_QUADS);
+    glVertex2i(150, 80);
+    glVertex2i(170, 80);
+	glVertex2i(170, 60);
+	glVertex2i(150, 60);
+	glEnd();
+
+    glPopMatrix();
+
+
+    glPopMatrix();
+
+
+    ///Right Moving Boat
+    glPushMatrix();
+	glTranslatef(_run, 0.0, 0.0);
+
+    ///boat 1
+    glPushMatrix();
+
     glColor3f(1, 0, 0);
-    DisplayText(-170,450,"Y O  U  W O N");
-    glColor3f(1, 0.5, 0);
-    DisplayText(-300,300,"Thanks For Playing Our Game!!");
-    glColor3f(1, 1, 0);
-	glBegin(GL_POLYGON);				//RESTART POLYGON
-		glVertex3f(-200, 50 ,0.5);
-		glVertex3f(-200 ,150 ,0.5);
-		glVertex3f(200 ,150 ,0.5);
-		glVertex3f(200 ,50, 0.5);
+    glBegin(GL_QUADS);
+    glVertex2i(130, 40);
+    glVertex2i(110, 60);
+	glVertex2i(190, 60);
+	glVertex2i(170, 40);
 	glEnd();
 
-	glBegin(GL_POLYGON);				//QUIT POLYGON
-		glVertex3f(-200 ,-200 ,0.5);
-		glVertex3f(-200 ,-100 ,0.5);
-		glVertex3f(200, -100 ,0.5);
-		glVertex3f(200, -200 ,0.5);
+	glColor3f(0, 1, 0);
+    glBegin(GL_QUADS);
+    glVertex2i(130, 80);
+    glVertex2i(150, 80);
+	glVertex2i(150, 60);
+	glVertex2i(130, 60);
 	glEnd();
-	if(mouseX>=-100 && mouseX<=100 && mouseY>=-25 && mouseY<=25){
-		glColor3f(0 ,1 ,1);
-    if(mouseButtonPressed){
-         //Reset game default values
-			gameScreen = true ;
-			finishGame=false;
-			mouseButtonPressed = false;
-			ResetGameState();
-            }
-        }
-	else
-		glColor3f(0 , 0, 1);
-	DisplayText(-70 ,80 ,"Restart");
 
-	if(mouseX>=-100 && mouseX<=100 && mouseY>=-150 && mouseY<=-100){
-		glColor3f(0 ,1 ,0);
-		if(mouseButtonPressed){
-			exit(0);
-			mouseButtonPressed = false;
-		}
+    glPopMatrix();
+
+    ///boat 2
+    glPushMatrix();
+    glTranslatef(500, 15, 0);
+
+
+    glColor3f(0.5, 0.0, 0.0);
+    glBegin(GL_QUADS);
+    glVertex2i(130, 40);
+    glVertex2i(110, 60);
+	glVertex2i(190, 60);
+	glVertex2i(170, 40);
+	glEnd();
+
+	glColor3f(0.5, 0.0, 0.5);
+    glBegin(GL_QUADS);
+    glVertex2i(130, 80);
+    glVertex2i(150, 80);
+	glVertex2i(150, 60);
+	glVertex2i(130, 60);
+	glEnd();
+
+    glPopMatrix();
+
+      ///boat 3
+
+    glPushMatrix();
+    glTranslatef(300, 0, 0);
+
+
+    glColor3f(1, 0, 1);
+    glBegin(GL_QUADS);
+    glVertex2i(130, 40);
+    glVertex2i(110, 60);
+	glVertex2i(190, 60);
+	glVertex2i(170, 40);
+	glEnd();
+
+	glColor3f(0, 0, 1);
+    glBegin(GL_QUADS);
+    glVertex2i(130, 80);
+    glVertex2i(150, 80);
+	glVertex2i(150, 60);
+	glVertex2i(130, 60);
+	glEnd();
+
+    glPopMatrix();
+
+
+    glPopMatrix();
+
+    ///Left Moving Boat
+    glPushMatrix();
+	glTranslatef(-_run, 0.0, 0.0);
+
+      ///boat 3
+
+    glPushMatrix();
+    glTranslatef(700, -30, 0);
+
+
+    glColor3f(0.247, 0.505, 0.231);
+    glBegin(GL_QUADS);
+    glVertex2i(130, 40);
+    glVertex2i(100, 65);
+	glVertex2i(220, 65);
+	glVertex2i(190, 40);
+	glEnd();
+
+	glColor3f(0.145, 0.156, 0.337);
+    glBegin(GL_QUADS);
+    glVertex2i(190, 88);
+    glVertex2i(150, 88);
+	glVertex2i(150, 65);
+	glVertex2i(190, 65);
+	glEnd();
+
+    glPopMatrix();
+
+
+    glPopMatrix();
+
+
+
+///1st CART
+
+    glPushMatrix();
+	glTranslatef(_run1, 0.0, 0.0);
+
+    glPushMatrix();
+    glTranslatef(40, 80, 0.0);
+
+    glPushMatrix();
+    glTranslatef(30, 220, 0.0);
+    glBegin(GL_POLYGON);
+    glColor3ub(225, 245, 93);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=10;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
 	}
-	else
-		glColor3f(0, 0, 1);
-	DisplayText(-100 ,-170 ,"    Quit");
-}
+	glEnd();
+   glPopMatrix();
 
-static void display(void){
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    //glViewport(0, 0, 1200, 800);
 
-    if(startScreen){
-        StartScreenDisplay();
-        //PlaySound("F:\\Project\\C++\\GLUT\\DX-Ball\\Sounds\\BackgroundMusic.wav",NULL,SND_ASYNC);
-    }
+///box of 1st CART
+	glColor3ub(242, 242, 237);
+	glBegin(GL_LINES);
+	glVertex2i(20,220);
+	glVertex2i(40,220);
+	glVertex2i(30,230);
+	glVertex2i(30,210);
+	glVertex2i(37,227);
+    glVertex2i(23,213);
+    glVertex2i(37,213);
+    glVertex2i(23,227);
 
-    if(instructionsGame){
-        startScreen = false;
-        InsructionScreenDisplay();
-    }
+    glVertex2i(5,230);
+    glVertex2i(100,230);
+    glVertex2i(100,230);
+    glVertex2i(100,232);
+    glVertex2i(100,232);
+    glVertex2i(5,232);
 
-    if(gameScreen){
-        startScreen = false;
-        GamePlayScreenDisplay();
-    }
+    glVertex2i(7,232);
+    glVertex2i(7,262);
+    glVertex2i(17,232);
+    glVertex2i(17,262);
+    glVertex2i(27,232);
+    glVertex2i(27,262);
+    glVertex2i(37,232);
+    glVertex2i(37,262);
 
-    if(gameOverScreen){
-        GameOverScreenDisplay();
-    }
+    glVertex2i(47,232);
+    glVertex2i(47,262);
+    glVertex2i(57,232);
+    glVertex2i(57,262);
+    glVertex2i(7,242);
+    glVertex2i(59,242);
+    glVertex2i(7,252);
+    glVertex2i(59,252);
+    glVertex2i(99,233);
+    glVertex2i(97,245);
+    glVertex2i(101,233);
+    glVertex2i(103,245);
+	glEnd();
 
-    if(finishGame){
-        FinishGameScreen();
-    }
 
-    if(gameQuit){
-        exit(0);
-    }
+///COW of 1st CART
+	glColor3ub(242, 242, 237);
+	glBegin(GL_LINE_LOOP);
+    glVertex2i(60,210);
+    glVertex2i(60,230);
+    glVertex2i(90,230);
+    glVertex2i(92,233);
+    glVertex2i(95,230);
+    glVertex2i(97,230);
+    glVertex2i(99,233);
+    glVertex2i(101,233);
+
+    glVertex2i(105,226);
+    glVertex2i(102,226);
+    glVertex2i(100,228);
+    glVertex2i(98,228);
+    glVertex2i(96,220);
+    glVertex2i(95,210);
+    glVertex2i(93,210);
+    glVertex2i(93,220);
+
+    glVertex2i(93,216);
+    glVertex2i(65,216);
+    glVertex2i(65,220);
+    glVertex2i(65,210);
+    glEnd();
+
+    glPopMatrix();
+///End of COW of 1st Cart
+
+
+//2nd CART
+    glPushMatrix();
+    glTranslatef(200, 100, 0.0);
+
+    glPushMatrix();
+    glTranslatef(30, 220, 0.0);
+    glBegin(GL_POLYGON);
+    glColor3ub(225, 245, 93);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=10;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+   glPopMatrix();
+
+
+//box of 2nd CART
+	glColor3ub(242, 242, 237);
+	glBegin(GL_LINES);
+	glVertex2i(20,220);
+	glVertex2i(40,220);
+	glVertex2i(30,230);
+	glVertex2i(30,210);
+	glVertex2i(37,227);
+    glVertex2i(23,213);
+    glVertex2i(37,213);
+    glVertex2i(23,227);
+
+    glVertex2i(5,230);
+    glVertex2i(100,230);
+    glVertex2i(100,230);
+    glVertex2i(100,232);
+    glVertex2i(100,232);
+    glVertex2i(5,232);
+
+    glVertex2i(7,232);
+    glVertex2i(7,262);
+    glVertex2i(17,232);
+    glVertex2i(17,262);
+    glVertex2i(27,232);
+    glVertex2i(27,262);
+    glVertex2i(37,232);
+    glVertex2i(37,262);
+
+    glVertex2i(47,232);
+    glVertex2i(47,262);
+    glVertex2i(57,232);
+    glVertex2i(57,262);
+    glVertex2i(7,242);
+    glVertex2i(59,242);
+    glVertex2i(7,252);
+    glVertex2i(59,252);
+    glVertex2i(99,233);
+    glVertex2i(97,245);
+    glVertex2i(101,233);
+    glVertex2i(103,245);
+	glEnd();
+
+
+//COW of 2nd CART
+	glColor3ub(242, 242, 237);
+	glBegin(GL_LINE_LOOP);
+    glVertex2i(60,210);
+    glVertex2i(60,230);
+    glVertex2i(90,230);
+    glVertex2i(92,233);
+    glVertex2i(95,230);
+    glVertex2i(97,230);
+    glVertex2i(99,233);
+    glVertex2i(101,233);
+
+    glVertex2i(105,226);
+    glVertex2i(102,226);
+    glVertex2i(100,228);
+    glVertex2i(98,228);
+    glVertex2i(96,220);
+    glVertex2i(95,210);
+    glVertex2i(93,210);
+    glVertex2i(93,220);
+
+    glVertex2i(93,216);
+    glVertex2i(65,216);
+    glVertex2i(65,220);
+    glVertex2i(65,210);
+    glEnd();
+
+    glPopMatrix();
+
+    glPopMatrix();
+
+//End of COW of 2nd Cart
+
+
+    //small home
+    glPushMatrix();
+    glTranslatef(-10, 70, 0.0);
+
+    glColor3ub(182, 163, 240);
+    glBegin(GL_POLYGON);
+    glVertex2i(85,310);
+    glVertex2i(85,350);
+    glVertex2i(130,350);
+    glVertex2i(130,310);
+    glEnd();
+
+    glColor3ub(240, 242, 242);
+    glBegin(GL_POLYGON);
+    glVertex2i(100,310);
+    glVertex2i(100,338);
+    glVertex2i(115,338);
+    glVertex2i(115,310);
+    glEnd();
+
+    glColor3ub(55, 161, 163);
+    glBegin(GL_TRIANGLES);
+    glVertex2i(80,350);
+    glVertex2i(107,380);
+    glVertex2i(135,350);
+    glEnd();
+
+    glColor3f(0.850, 0.490, 0.756);
+    glBegin(GL_QUADS);
+    glVertex2i(80,310);
+    glVertex2i(80,300);
+    glVertex2i(135,300);
+    glVertex2i(135,310);
+    glEnd();
+    glPopMatrix();
+
+
+    //small home2
+    glPushMatrix();
+    glTranslatef(60, 70, 0.0);
+
+    glColor3ub(182, 163, 240);
+    glBegin(GL_POLYGON);
+    glVertex2i(85,310);
+    glVertex2i(85,350);
+    glVertex2i(130,350);
+    glVertex2i(130,310);
+    glEnd();
+
+    glColor3ub(240, 242, 242);
+    glBegin(GL_POLYGON);
+    glVertex2i(100,310);
+    glVertex2i(100,338);
+    glVertex2i(115,338);
+    glVertex2i(115,310);
+    glEnd();
+
+    glColor3ub(55, 161, 163);
+    glBegin(GL_TRIANGLES);
+    glVertex2i(80,350);
+    glVertex2i(107,380);
+    glVertex2i(135,350);
+    glEnd();
+
+    glColor3f(0.850, 0.490, 0.756);
+    glBegin(GL_QUADS);
+    glVertex2i(80,310);
+    glVertex2i(80,300);
+    glVertex2i(135,300);
+    glVertex2i(135,310);
+    glEnd();
+    glPopMatrix();
+
+
+///Making of Rail Body
+
+    glPushMatrix();
+    glTranslatef(_ang_tri, 0.0, 0.0);
+
+    glColor3f(0.192, 0.576, 0.705);
+    glBegin(GL_QUADS);
+    glVertex2i(100, 200);
+    glVertex2i(170, 200);
+	glVertex2i(170, 250);
+	glVertex2i(100, 250);
+	glEnd();
+
+    glColor3f(1.0, 1.0, 1.0);
+    glBegin(GL_QUADS);
+    glVertex2i(110, 225);
+    glVertex2i(120, 225);
+	glVertex2i(120, 240);
+	glVertex2i(110, 240);
+	glEnd();
+
+	glColor3f(1.0, 1.0, 1.0);
+    glBegin(GL_QUADS);
+    glVertex2i(130, 225);
+    glVertex2i(140, 225);
+	glVertex2i(140, 240);
+	glVertex2i(130, 240);
+	glEnd();
+
+	glColor3f(1.0, 1.0, 1.0);
+    glBegin(GL_QUADS);
+    glVertex2i(150, 225);
+    glVertex2i(160, 225);
+	glVertex2i(160, 240);
+	glVertex2i(150, 240);
+	glEnd();
+
+	glColor3f(1.0, 0.0, 0.0);
+	glBegin(GL_QUADS);
+    glVertex2i(100, 210);
+    glVertex2i(170, 210);
+	glVertex2i(170, 215);
+	glVertex2i(100, 215);
+	glEnd();
+
+    glColor3f(1.0, 1.0, 1.0);
+    glBegin(GL_QUADS);
+    glVertex2i(170, 200);
+    glVertex2i(176, 210);
+	glVertex2i(176, 260);
+	glVertex2i(170, 250);
+	glEnd();
+
+
+	glColor3f(1.0, 1.0, 1.0);
+    glBegin(GL_QUADS);
+    glVertex2i(101, 250);
+    glVertex2i(170, 250);
+	glVertex2i(176, 260);
+	glVertex2i(105, 260);
+	glEnd();
+
+	glPushMatrix();
+    glTranslatef(115, 192, 0.0);
+    glBegin(GL_POLYGON);
+    glColor3ub(109, 109, 115);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=10;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+   glPopMatrix();
+
+
+    glPushMatrix();
+    glTranslatef(155, 192, 0.0);
+    glBegin(GL_POLYGON);
+    glColor3ub(109, 109, 115);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=10;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+   glPopMatrix();
+
+
+    glPushMatrix();
+    glTranslatef(75, 0, 0);
+
+    glColor3f(0.192, 0.576, 0.705);
+    glBegin(GL_QUADS);
+    glVertex2i(100, 200);
+    glVertex2i(170, 200);
+	glVertex2i(170, 250);
+	glVertex2i(100, 250);
+	glEnd();
+
+    glColor3f(1.0, 1.0, 1.0);
+    glBegin(GL_QUADS);
+    glVertex2i(110, 225);
+    glVertex2i(120, 225);
+	glVertex2i(120, 240);
+	glVertex2i(110, 240);
+	glEnd();
+
+	glColor3f(1.0, 1.0, 1.0);
+    glBegin(GL_QUADS);
+    glVertex2i(130, 225);
+    glVertex2i(140, 225);
+	glVertex2i(140, 240);
+	glVertex2i(130, 240);
+	glEnd();
+
+	glColor3f(1.0, 1.0, 1.0);
+    glBegin(GL_QUADS);
+    glVertex2i(150, 225);
+    glVertex2i(160, 225);
+	glVertex2i(160, 240);
+	glVertex2i(150, 240);
+	glEnd();
+
+	glColor3f(1.0, 0.0, 0.0);
+	glBegin(GL_QUADS);
+    glVertex2i(100, 210);
+    glVertex2i(170, 210);
+	glVertex2i(170, 215);
+	glVertex2i(100, 215);
+	glEnd();
+
+    glColor3f(1.0, 1.0, 1.0);
+    glBegin(GL_QUADS);
+    glVertex2i(170, 200);
+    glVertex2i(176, 210);
+	glVertex2i(176, 260);
+	glVertex2i(170, 250);
+	glEnd();
+
+
+	glColor3f(1.0, 1.0, 1.0);
+    glBegin(GL_QUADS);
+    glVertex2i(101, 250);
+    glVertex2i(170, 250);
+	glVertex2i(176, 260);
+	glVertex2i(105, 260);
+	glEnd();
+
+	glPushMatrix();
+    glTranslatef(115, 192, 0.0);
+    glBegin(GL_POLYGON);
+    glColor3ub(109, 109, 115);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=10;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+   glPopMatrix();
+
+
+   glPushMatrix();
+    glTranslatef(155, 192, 0.0);
+    glBegin(GL_POLYGON);
+    glColor3ub(109, 109, 115);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=10;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+    glPopMatrix();
+
+    glPopMatrix();
+
+
+
+    glPushMatrix();
+    glTranslatef(-75, 0, 0);
+
+    glColor3f(0.192, 0.576, 0.705);
+    glBegin(GL_QUADS);
+    glVertex2i(100, 200);
+    glVertex2i(170, 200);
+	glVertex2i(170, 250);
+	glVertex2i(100, 250);
+	glEnd();
+
+    glColor3f(1.0, 1.0, 1.0);
+    glBegin(GL_QUADS);
+    glVertex2i(110, 225);
+    glVertex2i(120, 225);
+	glVertex2i(120, 240);
+	glVertex2i(110, 240);
+	glEnd();
+
+	glColor3f(1.0, 1.0, 1.0);
+    glBegin(GL_QUADS);
+    glVertex2i(130, 225);
+    glVertex2i(140, 225);
+	glVertex2i(140, 240);
+	glVertex2i(130, 240);
+	glEnd();
+
+	glColor3f(1.0, 1.0, 1.0);
+    glBegin(GL_QUADS);
+    glVertex2i(150, 225);
+    glVertex2i(160, 225);
+	glVertex2i(160, 240);
+	glVertex2i(150, 240);
+	glEnd();
+
+	glColor3f(1.0, 0.0, 0.0);
+	glBegin(GL_QUADS);
+    glVertex2i(100, 210);
+    glVertex2i(170, 210);
+	glVertex2i(170, 215);
+	glVertex2i(100, 215);
+	glEnd();
+
+    glColor3f(1.0, 1.0, 1.0);
+    glBegin(GL_QUADS);
+    glVertex2i(170, 200);
+    glVertex2i(176, 210);
+	glVertex2i(176, 260);
+	glVertex2i(170, 250);
+	glEnd();
+
+
+	glColor3f(1.0, 1.0, 1.0);
+    glBegin(GL_QUADS);
+    glVertex2i(101, 250);
+    glVertex2i(170, 250);
+	glVertex2i(176, 260);
+	glVertex2i(105, 260);
+	glEnd();
+
+	glPushMatrix();
+    glTranslatef(115, 192, 0.0);
+    glBegin(GL_POLYGON);
+    glColor3ub(109, 109, 115);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=10;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+   glPopMatrix();
+
+
+    glPushMatrix();
+    glTranslatef(155, 192, 0.0);
+    glBegin(GL_POLYGON);
+    glColor3ub(109, 109, 115);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=10;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+    glPopMatrix();
+
+    glPopMatrix();
+
+    glPushMatrix();
+    glTranslatef(150, 0, 0);
+
+    glColor3f(0.192, 0.576, 0.705);
+    glBegin(GL_QUADS);
+    glVertex2i(100, 200);
+    glVertex2i(170, 200);
+	glVertex2i(170, 250);
+	glVertex2i(100, 250);
+	glEnd();
+
+    glColor3f(1.0, 1.0, 1.0);
+    glBegin(GL_QUADS);
+    glVertex2i(110, 225);
+    glVertex2i(120, 225);
+	glVertex2i(120, 240);
+	glVertex2i(110, 240);
+	glEnd();
+
+	glColor3f(1.0, 1.0, 1.0);
+    glBegin(GL_QUADS);
+    glVertex2i(130, 225);
+    glVertex2i(140, 225);
+	glVertex2i(140, 240);
+	glVertex2i(130, 240);
+	glEnd();
+
+	glColor3f(1.0, 1.0, 1.0);
+    glBegin(GL_QUADS);
+    glVertex2i(150, 225);
+    glVertex2i(160, 225);
+	glVertex2i(160, 240);
+	glVertex2i(150, 240);
+	glEnd();
+
+	glColor3f(1.0, 0.0, 0.0);
+	glBegin(GL_QUADS);
+    glVertex2i(100, 210);
+    glVertex2i(170, 210);
+	glVertex2i(170, 215);
+	glVertex2i(100, 215);
+	glEnd();
+
+    glColor3f(1.0, 1.0, 1.0);
+    glBegin(GL_QUADS);
+    glVertex2i(170, 200);
+    glVertex2i(176, 210);
+	glVertex2i(176, 260);
+	glVertex2i(170, 250);
+	glEnd();
+
+
+	glColor3f(1.0, 1.0, 1.0);
+    glBegin(GL_QUADS);
+    glVertex2i(101, 250);
+    glVertex2i(170, 250);
+	glVertex2i(176, 260);
+	glVertex2i(105, 260);
+	glEnd();
+
+	glPushMatrix();
+    glTranslatef(115, 192, 0.0);
+    glBegin(GL_POLYGON);
+    glColor3ub(109, 109, 115);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=10;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+   glPopMatrix();
+
+
+   glPushMatrix();
+    glTranslatef(155, 192, 0.0);
+    glBegin(GL_POLYGON);
+    glColor3ub(109, 109, 115);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=10;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+    glPopMatrix();
+
+    glPopMatrix();
+
+    glColor3f(1.0, 0.0, 0.0);
+	glBegin(GL_QUADS);
+    glVertex2i(322, 245);
+    glVertex2i(330, 245);
+	glVertex2i(330, 232);
+	glVertex2i(322, 232);
+	glEnd();
+
+	glColor3f(0.325, 0.101, 0.619);
+	glBegin(GL_QUADS);
+    glVertex2i(310, 253);
+    glVertex2i(300, 253);
+	glVertex2i(300, 258);
+	glVertex2i(310, 258);
+	glEnd();
+
+	glPushMatrix();
+    glTranslatef(303, 267, 0.0);
+    glBegin(GL_POLYGON);
+    glColor3f(0.709, 0.701, 0.717);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=3;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+    glPopMatrix();
+
+    glPushMatrix();
+    glTranslatef(293, 270, 0.0);
+    glBegin(GL_POLYGON);
+    glColor3f(0.709, 0.701, 0.717);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=4;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+    glPopMatrix();
+
+
+    glPushMatrix();
+    glTranslatef(283, 272, 0.0);
+    glBegin(GL_POLYGON);
+    glColor3f(0.709, 0.701, 0.717);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=5;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+    glPopMatrix();
+
+    glPopMatrix();
+
+///End of Making of Rail Body
+
+
+///flag
+    glPushMatrix();
+    glTranslatef(0, 40, 0);
+
+    glColor3ub(156, 143, 6);    //STAIR
+    glBegin(GL_QUADS);
+    glVertex2i(475, 340);
+    glVertex2i(475, 350);
+	glVertex2i(490, 350);
+	glVertex2i(490, 340);
+	glEnd();
+
+    glColor3ub(106, 107, 108);    //STAND
+    glBegin(GL_QUADS);
+    glVertex2i(480, 350);
+    glVertex2i(480, 425);
+	glVertex2i(485, 425);
+	glVertex2i(485, 350);
+	glEnd();
+
+	glColor3ub(9, 107, 4);    //QUAD
+    glBegin(GL_QUADS);
+    glVertex2i(485, 390);
+    glVertex2i(485, 425);
+	glVertex2i(550, 425);
+	glVertex2i(550, 390);
+	glEnd();
+
+    //Circle
+    glPushMatrix();
+    //glScalef(0.5, 0.5, 0.5);
+    glTranslatef(516, 407, 0);
+
+
+    glPushMatrix();
+    glBegin(GL_POLYGON);
+    glColor3f(1,0,0);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=12;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+   glEnd();
+   glPopMatrix();
+   glPopMatrix();
+
+   glPopMatrix();
+
+///Cloud
+
+    glPushMatrix();
+    glTranslatef(_run3, 0.0, 0.0);
+
+    glPushMatrix();
+    glTranslatef(200, 800, 0);
+
+    glBegin(GL_POLYGON);
+    glColor3f(1.0, 1.0, 1.0);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=40;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+    glPopMatrix();
+
+
+    glPushMatrix();
+    glTranslatef(180, 750, 0);
+
+    glBegin(GL_POLYGON);
+    glColor3f(1.0, 1.0, 1.0);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=50;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+    glPopMatrix();
+
+
+    glPushMatrix();
+    glTranslatef(250, 800, 0);
+
+    glBegin(GL_POLYGON);
+    glColor3f(1.0, 1.0, 1.0);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=40;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+    glPopMatrix();
+
+
+    glPushMatrix();
+    glTranslatef(230, 750, 0);
+
+    glBegin(GL_POLYGON);
+    glColor3f(1.0, 1.0, 1.0);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=50;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+    glPopMatrix();
+
+//cloud 2
+    glPushMatrix();
+    glTranslatef(350, 100, 0);
+    glPushMatrix();
+    glTranslatef(200, 800, 0);
+
+    glBegin(GL_POLYGON);
+    glColor3f(1.0, 1.0, 1.0);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=40;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+    glPopMatrix();
+
+
+    glPushMatrix();
+    glTranslatef(180, 750, 0);
+
+    glBegin(GL_POLYGON);
+    glColor3f(1.0, 1.0, 1.0);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=50;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+    glPopMatrix();
+
+
+    glPushMatrix();
+    glTranslatef(250, 800, 0);
+
+    glBegin(GL_POLYGON);
+    glColor3f(1.0, 1.0, 1.0);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=50;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+    glPopMatrix();
+
+
+    glPushMatrix();
+    glTranslatef(230, 750, 0);
+
+    glBegin(GL_POLYGON);
+    glColor3f(1.0, 1.0, 1.0);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=50;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+    glPopMatrix();
+
+    glPushMatrix();
+    glTranslatef(300, 800, 0);
+
+    glBegin(GL_POLYGON);
+    glColor3f(1.0, 1.0, 1.0);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=40;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+    glPopMatrix();
+
+     glPushMatrix();
+    glTranslatef(290, 760, 0);
+
+    glBegin(GL_POLYGON);
+    glColor3f(1.0, 1.0, 1.0);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=40;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+    glPopMatrix();
+
+    glPopMatrix();
+
+    glPopMatrix();
+//end of cloud
+
+
+
+//Helicopter
+    glPushMatrix();
+    glTranslatef(_run2, 0.0, 0.0);
+
+    glBegin(GL_POLYGON);
+    glColor3ub(163, 14, 225);
+    glVertex2i(20,850);
+    glVertex2i(30,820);
+    glVertex2i(100,820);
+    glVertex2i(110,800);
+    glVertex2i(200,800);
+    glVertex2i(200,815);
+    glVertex2i(190,830);
+    glVertex2i(180,830);
+    glVertex2i(170,860);
+    glVertex2i(155,860);
+    glVertex2i(150,870);
+    glVertex2i(135,860);
+    glVertex2i(115,860);
+    glVertex2i(100,825);
+    glVertex2i(30,850);
+    glEnd();
+
+
+    glColor3ub(225, 19, 14);
+    glBegin(GL_TRIANGLES);
+    glVertex2i(200,800);
+    glVertex2i(200,815);
+    glVertex2i(215,808);
+    glEnd();
+
+     glPushMatrix();
+     glTranslatef(28, 850, 0);
+
+    glBegin(GL_LINE_LOOP);
+    glColor3ub(225, 19, 14);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=15;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+    glPopMatrix();
+
+    glPushMatrix();
+     glTranslatef(28, 850, 0);
+
+    glBegin(GL_LINE_LOOP);
+    glColor3ub(225, 19, 14);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=16;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+    glPopMatrix();
+
+
+    glColor3ub(225, 19, 14);
+    glBegin(GL_TRIANGLES);
+    glVertex2i(200,800);
+    glVertex2i(200,815);
+    glVertex2i(215,808);
+    glEnd();
+
+     glPushMatrix();
+     glTranslatef(142, 870, 0);
+
+    glBegin(GL_LINE_LOOP);
+    glColor3ub(225, 19, 14);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=30;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+    glPopMatrix();
+
+    glPushMatrix();
+    glTranslatef(142, 870, 0);
+
+    glBegin(GL_LINE_LOOP);
+    glColor3ub(225, 19, 14);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=29;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+    glPopMatrix();
+
+    glPushMatrix();
+    glTranslatef(130, 790, 0);
+
+    glBegin(GL_POLYGON);
+    glColor3ub(44, 42, 45);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=8;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+    glPopMatrix();
+
+
+    glPushMatrix();
+    glTranslatef(165, 790, 0);
+
+    glBegin(GL_POLYGON);
+    glColor3ub(44, 42, 45);
+	for(int i=0;i<200;i++)
+	{
+		float pi=3.1416;
+		float A=(i*2*pi)/200;
+		float r=8;
+		float x = r * cos(A);
+		float y = r * sin(A);
+		glVertex2f(x,y );
+	}
+	glEnd();
+    glPopMatrix();
+
+    glPopMatrix();
+
+//End of Helicopter
+
+//text school
+    glColor3f(1.0, 1.0, 1.0);    //QUAD
+    glBegin(GL_QUADS);
+    glVertex2i(675, 495);
+    glVertex2i(725, 495);
+	glVertex2i(725, 475);
+	glVertex2i(675, 475);
+	glEnd();
+
+
+    glPushMatrix();
+    glTranslatef(680, 478, 0);
+    Sprint(1.0,0,text);
+    glPopMatrix();
+// end of text
+
 
     glFlush();
-	glLoadIdentity();
 	glutSwapBuffers();
 }
 
-void GenarateBonus(Block bonus){
-    glColor3f(1,0.5,1);
-    glPushMatrix();
-    glTranslated(0, -100, 0.0);
-    textures = loadTexture(images[3]);
-        glEnable(GL_TEXTURE_2D);
-        glBindTexture(GL_TEXTURE_2D, textures);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-         glBegin ( GL_POLYGON ) ;
-                glTexCoord2i(1.0,0.0);
-                glVertex2i ( blocks[0].posX1 , blocks[0].posY1 ) ;
-                glTexCoord2i(1.0,1.0);
-                glVertex2i ( blocks[0].posX1 , blocks[0].posY2 ) ;
-                glTexCoord2i(0.0,1.0);
-                glVertex2i ( blocks[0].posX2 , blocks[0].posY2) ;
-                glTexCoord2i(0.0,0.0);
-                glVertex2i ( blocks[0].posX2 , blocks[0].posY1 ) ;
-            glEnd () ;
-            glDisable(GL_TEXTURE_2D);
-            glDeleteTextures(1,&textures);
-            glFinish();
-        glPopMatrix();
-        //DisplayText(0,0,"Bonus");
 
-        glutSwapBuffers();
-}
+void update(int value) {
 
-void Update(int v){
-    if(gameScreen && isGameStarted){
-         ballY += ballSpeedY;
-         ballX += ballSpeedX;
-
-
-         if(barPosX<= ballX  && ballX<= barPosX + barSize && ballY<= -650+ballSize){
-                isCatched = true;
-         }
-
-
-         if(ballX<=-1200 + ballSize ){
-                isCollideToLeft = true;
-            }
-        if(ballX>=1200 - ballSize ){
-                isCollideToRight = true;
-            }
-        if(ballY<=-800 + ballSize){
-                isCollideToBottom = true;
-            }
-        if(ballY>=800 - ballSize ){
-                isCollideToTop = true;
-            }
-
-        if(isCollideToTop){
-            PlaySound("F:\\Project\\C++\\GLUT\\DX-Ball\\Sounds\\Swordswi.wav",NULL,SND_ASYNC);
-            ballSpeedY*=-1;
-            isCollideToTop=false;
-        }
-        if(isCatched){
-
-            float ballOnCatcher = (barSize+(ballX-barPosX))/barSize;
-            if(ballOnCatcher>=1 && 1.1>ballOnCatcher)
-                ballSpeedX= -32;
-            else if(ballOnCatcher>=1.1 && 1.2>ballOnCatcher)
-                ballSpeedX= -26;
-            else if(ballOnCatcher>=1.2 && 1.33>ballOnCatcher)
-                ballSpeedX= -18;
-            else if(ballOnCatcher>=1.33 && 1.48>ballOnCatcher)
-                ballSpeedX= -9;
-            else if(ballOnCatcher>=1.48 && 1.52>ballOnCatcher)
-                ballSpeedX= -0.0;
-            else if(ballOnCatcher>=1.52 && 1.67>ballOnCatcher)
-                ballSpeedX= 9;
-            else if(ballOnCatcher>=1.67 && 1.8>ballOnCatcher)
-                ballSpeedX= 18;
-            else if(ballOnCatcher>=1.8 && 1.9>ballOnCatcher)
-                ballSpeedX= 26;
-            else if(ballOnCatcher>=1.9 && 2.0>=ballOnCatcher)
-                ballSpeedX= 32;
-            PlaySound("F:\\Project\\C++\\GLUT\\DX-Ball\\Sounds\\Boing.wav",NULL,SND_ASYNC);
-            ballSpeedY*=-1;
-            isCatched = false;
-        }
-        if(isCollideToBottom){
-            if(highScore<Score)
-                highScore = Score;
-            PlaySound("F:\\Project\\C++\\GLUT\\DX-Ball\\Sounds\\Padexplo.wav",NULL,SND_ASYNC);
-            gameOverScreen = true;
-            gameScreen = false;
-        }
-
-        if(isCollideToLeft || isCollideToRight){
-            PlaySound("F:\\Project\\C++\\GLUT\\DX-Ball\\Sounds\\Swordswi.wav",NULL,SND_ASYNC);
-            ballSpeedX*=-1;
-            isCollideToRight=false;
-            isCollideToLeft=false;
-        }
-
-
-        for(int i=0; i<44; i++){
-
-           if(blocks[i].posX1 - ballSize/1.5 < ballX && ballX <  blocks[i].posX2 + ballSize/1.5 && blocks[i].posY1 - ballSize/1.5 < ballY && ballY <  blocks[i].posY2 + ballSize/1.5 )
-                {
-
-                    if(!blocks[i].isDead){
-                        ballSpeedY*=-1;
-                        Score++;
-                        //GenarateBonus(blocks[i]);
-                        blocks[i].isDead = true;
-                        PlaySound("F:\\Project\\C++\\GLUT\\DX-Ball\\Sounds\\Bang.wav",NULL,SND_ASYNC);
-
-
-                    }
-
-                }
-        }
-
+	_run += 1.0f;
+	if (_run > 1000)
+    {
+        _run -= 1700;
     }
 
-    glutTimerFunc(100, Update, v);
+    _run1 += 1.0f;
+	if (_run1 > 1000)
+    {
+        _run1 -= 1300;
+    }
+
+    _run2 += 3.5f;
+	if (_run2 > 1000)
+    {
+        _run2 -= 1300;
+    }
+
+     _run3 += 0.8f;
+	if (_run3 > 1000)
+    {
+        _run3 -= 1700;
+    }
+
+    if(onOff){
+	_ang_tri += 2.5f;
+	if (_ang_tri > 1000){
+		_ang_tri = 1300;
+	}
+	 }
+
+	glutPostRedisplay(); //Tell GLUT that the display has changed
+	glutTimerFunc(25, update, 0);
 }
 
-static void idle(void)
+
+void railForward(int value){
+
+if(frd){
+
+    _ang_tri += 2.2f;
+
+    if (_ang_tri > 1000) {
+		_ang_tri -= 1400;
+	}
+
+	glutPostRedisplay();
+	glutTimerFunc(25, railForward, 0);
+}
+}
+
+void railBackward(int value){
+if(bck){
+
+    _ang_tri -= 2.2f;
+
+     if (_ang_tri < -350) {
+		_ang_tri = 1100;
+	}
+	glutPostRedisplay();
+	glutTimerFunc(25, railBackward, 0);
+}
+}
+
+
+void Rain(int value){
+
+if(rainday){
+
+    _rain += 0.01f;
+
+    glBegin(GL_POINTS);
+    for(int i=1;i<=1000;i++)
+    {
+        int x=rand(),y=rand();
+        x%=1000; y%=1000;
+        glBegin(GL_LINES);
+        glColor3f(1.0, 1.0, 1.0);
+        glVertex2d(x,y);
+        glVertex2d(x+5,y+5);
+        glEnd();
+    }
+
+	glutPostRedisplay();
+	glutTimerFunc(5, Rain, 0);
+
+    glFlush();
+
+}
+}
+
+void Night(int value){
+
+if(night){
+
+   /* glBegin(GL_QUADS);
+	glColor3f(0.10, 0.10, 0.10);
+	glVertex2i(0,1000);
+	glVertex2i(1000,1000);
+	glVertex2i(1000,0);
+	glVertex2i(0,0);
+	glEnd();*/
+
+    glClearColor(0.0,0.0,0.0,0.0);
+	glutPostRedisplay();
+    glutTimerFunc(5, Night, 0);
+    glFlush();
+
+}
+}
+
+void myKeyboard(unsigned char key, int x, int y){
+	switch (key)
+	{
+	case 'a':
+        frd = false;
+	    bck = true;
+	    railBackward(_ang_tri);
+	break;
+
+	case 'd':
+	     frd = true;
+	     bck = false;
+         railForward(_ang_tri);
+	    break;
+
+    case 's':
+        frd = false;
+        bck = false;
+        break;
+
+    case 'r':
+        rainday = true;
+        Rain(_rain);
+        sndPlaySound("River.wav",SND_ASYNC|SND_LOOP);
+        //sndPlaySound("River.wav",SND_MEMORY|SND_ASYNC);
+        break;
+
+    case 'e':
+        rainday = false;
+		sndPlaySound(NULL,SND_ASYNC);
+        break;
+
+    case 'n':
+        night = true;
+        Night(_nt);
+        break;
+
+    case 'b':
+        night = false;
+        glClearColor(0.0,0.5,0.8,1.0);
+        break;
+
+    case 27:     // ESC key
+        exit(0);
+        break;
+
+	default:
+	break;
+	}
+}
+
+
+int main(int argc,char **argv)
 {
-    glutPostRedisplay();
+    cout << endl << "*********** Natural View Of A Village ********************" << endl << endl;
+
+    cout << "Press D : To Forward the Train" << endl << endl;
+    cout << "Press A : To Backward the Train" << endl << endl;
+    cout << "Press S : To Stop the Train" << endl << endl;
+
+    cout << "Press R : For Rain " << endl << endl;
+    cout << "Press E : For Stop Rain" << endl << endl;
+
+    cout << "Press N : For Night " << endl << endl;
+    cout << "Press B : For Day" << endl << endl;
+
+	glutInit(&argc, argv);
+	glutInitDisplayMode(GLUT_SINGLE| GLUT_RGB | GLUT_DEPTH);
+	glutInitWindowSize(1200, 600);
+	glutCreateWindow("Natural View Of A Village");     // creating the window
+	//glutFullScreen();       // making the window full screen
+	//glutInitWindowPosition(0,0);
+	glutDisplayFunc(display);
+	glutKeyboardFunc(myKeyboard);
+	glutTimerFunc(25, update, 0);
+	init();
+	glutMainLoop();
+	return 0;
 }
-
-void myinit()
-{
-	glClearColor(0.5,0.5,0.5,0);
-	glColor3f(1.0,0.0,0.0);
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-
-    gluOrtho2D(-1200,1200,-800,800);
-	glMatrixMode(GL_MODELVIEW);
-}
-
-void passiveMotionFunc(int x,int y) {
-
-	//when mouse not clicked
-	mouseX = float(x)/(m_viewport[2]/1200.0)-600.0;  //converting screen resolution to ortho 2d spec
-	mouseY = -(float(y)/(m_viewport[3]/800.0)-350.0);
-	display();
-}
-
-void SpecialFunc(int key, int x, int y){
-    if(gameScreen && isGameStarted)
-        {
-        switch(key){
-            case GLUT_KEY_RIGHT:
-                if(barPosX<1200-barSize)
-                    barPosX += 50;
-                break;
-            case GLUT_KEY_LEFT:
-                if(barPosX>-1200)
-                    barPosX -= 50;
-                break;
-            case GLUT_KEY_UP:
-                    barSize += 50;
-                break;
-            case GLUT_KEY_DOWN:
-                    barSize -= 50;
-                break;
-             case GLUT_KEY_END:
-                {
-                    ResetGameState();
-                }
-                break;
-            }
-        }
-
-
-    if(gameScreen && !isGameStarted)
-        {
-        switch(key){
-            case GLUT_KEY_RIGHT:
-                if(barPosX<1200-barSize)
-                    {
-                        barPosX += 50;
-                        ballX += 50;
-                    }
-                break;
-            case GLUT_KEY_LEFT:
-                if(barPosX>-1200)
-                {
-                    barPosX -= 50;
-                    ballX -= 50;
-                }
-                break;
-            case GLUT_KEY_UP:
-                    barSize += 50;
-                break;
-            case GLUT_KEY_DOWN:
-                    barSize -= 50;
-                break;
-            case GLUT_KEY_HOME:
-                {
-                    isGameStarted = true;
-                    RandomBallCorner();
-                }
-                break;
-            }
-        }
-    glutPostRedisplay();
-}
-
-static void keyBoard(unsigned char key, int x, int y)
-{
-     if(gameScreen && !isGameStarted)
-        {
-            switch (key)
-                {
-                case ' ':
-                    {
-                    isGameStarted = true;
-                    RandomBallCorner();
-                    }
-                    break;
-                }
-        }
-
-    if(gameScreen && isGameStarted)
-        {
-            switch (key)
-                {
-                case 'w':
-                    ballY += 10;
-                    break;
-                case 's':
-                   ballY -= 10;
-                   break;
-                case 'a':
-                    ballX -= 10;
-                    break;
-                 case 'd':
-                    ballX += 10;
-                    break;
-                }
-        }
-    glutPostRedisplay();
-}
-
-void mouseClick(int buttonPressed ,int state ,int x, int y) {
-	if(buttonPressed == GLUT_LEFT_BUTTON && state == GLUT_DOWN)
-		mouseButtonPressed = true;
-	else
-		mouseButtonPressed = false;
-	display();
-}
-
-int main(int argc, char *argv[])
-{
-    glutInit(&argc, argv);
-    glutInitWindowSize(1200,800);
-    glutInitWindowPosition(300,100);
-    glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH);
-
-    glutCreateWindow("DX-Ball");
-
-    glutDisplayFunc(display);
-    glutSpecialFunc(SpecialFunc);
-    glutKeyboardFunc(keyBoard);
-    glutTimerFunc(100, Update, 0);
-    glutPassiveMotionFunc(passiveMotionFunc);
-    glutMouseFunc(mouseClick);
-    glGetIntegerv(GL_VIEWPORT ,m_viewport);
-    glutIdleFunc(idle);
-    myinit();
-
-    glutMainLoop();
-
-    return EXIT_SUCCESS;
-}
-
-
-
-
